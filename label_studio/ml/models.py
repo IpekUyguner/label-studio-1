@@ -10,6 +10,7 @@ from django.db.models.signals import post_save, pre_delete
 
 from core.utils.common import safe_float, conditional_atomic
 from data_export.serializers import ExportDataSerializer
+from label_studio.ml import ls
 from ml.api_connector import MLApi
 from projects.models import Project
 from tasks.models import Prediction
@@ -160,21 +161,17 @@ class MLBackend(models.Model):
 
         if isinstance(tasks, list):
             from tasks.models import Task
-
             tasks = Task.objects.filter(id__in=[task.id for task in tasks])
 
+        print('blablabla')
         tasks_ser = TaskSimpleSerializer(tasks, many=True).data
-        ml_api_result = self.api.make_predictions(tasks_ser, self.project.model_version, self.project)
-        if ml_api_result.is_error:
-            logger.warning(f'Prediction not created for project {self}: {ml_api_result.error_message}')
-            return
 
-        if not (isinstance(ml_api_result.response, dict) and 'results' in ml_api_result.response):
-            logger.error(f'ML backend returns an incorrect response, it should be a dict: {ml_api_result.response}')
-            return
+        #INSTEAD OF CALLING API FOR PREDICTIONS, DO IT INTERNALLY HERE.
+    #    ml_api_result = self.api.make_predictions(tasks_ser, self.project.model_version, self.project)
+        m = ls.TranscriptionModel()
+        predictions = m.predict(tasks_ser)
 
-        responses = ml_api_result.response['results']
-
+        responses = predictions
         if len(responses) == 0:
             logger.warning(f'ML backend returned empty prediction for project {self}')
             return
@@ -195,6 +192,8 @@ class MLBackend(models.Model):
 
         predictions = []
         for task, response in zip(tasks_ser, responses):
+            print('resp:')
+            print(response)
             if 'result' not in response:
                 logger.error(
                     f"ML backend returns an incorrect prediction, it should be a dict with the 'result' field:"

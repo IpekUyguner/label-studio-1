@@ -14,6 +14,7 @@ from drf_yasg import openapi
 from django.db.models import Sum, Count
 from django.conf import settings
 from ordered_set import OrderedSet
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 from core.utils.common import get_object_with_check_and_log, int_from_request, bool_from_request, load_func
 from core.permissions import all_permissions, ViewClassPermission
@@ -330,6 +331,7 @@ class TaskAPI(generics.RetrieveAPIView):
 ))
 class ProjectColumnsAPI(APIView):
     permission_required = all_permissions.projects_view
+  #  permission_classes = (IsAdminUser,)
 
     def get(self, request):
         pk = int_from_request(request.GET, "project", 1)

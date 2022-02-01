@@ -28,6 +28,7 @@ from .models import FileUpload
 
 from webhooks.utils import emit_webhooks_for_instance
 from webhooks.models import WebhookAction
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +161,7 @@ task_create_response_scheme = {
 # Import
 class ImportAPI(generics.CreateAPIView):
     permission_required = all_permissions.projects_change
+   # permission_classes = (IsAdminUser,)
     parser_classes = (JSONParser, MultiPartParser, FormParser)
     serializer_class = ImportApiSerializer
     queryset = Task.objects.all()
@@ -257,6 +259,8 @@ class ImportAPI(generics.CreateAPIView):
 # Import
 class ImportPredictionsAPI(generics.CreateAPIView):
     permission_required = all_permissions.projects_change
+  #  permission_classes = (IsAdminUser,)
+
     parser_classes = (JSONParser, MultiPartParser, FormParser)
     serializer_class = PredictionSerializer
     queryset = Project.objects.all()
@@ -291,6 +295,7 @@ class TasksBulkCreateAPI(ImportAPI):
 
 class ReImportAPI(ImportAPI):
     permission_required = all_permissions.projects_change
+ #   permission_classes = (IsAdminUser,)
 
     @retry_database_locked()
     def create(self, request, *args, **kwargs):
@@ -444,6 +449,7 @@ class FileUploadAPI(generics.RetrieveUpdateDestroyAPIView):
 
 class UploadedFileResponse(generics.RetrieveAPIView):
     permission_classes = (IsAuthenticated, )
+  #  permission_classes = (IsAdminUser,)
 
     @swagger_auto_schema(auto_schema=None)
     def get(self, *args, **kwargs):

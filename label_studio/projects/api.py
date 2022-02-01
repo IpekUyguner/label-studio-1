@@ -40,6 +40,7 @@ from core.utils.io import find_dir, find_file, read_yaml
 
 from data_manager.functions import get_prepared_queryset, filters_ordering_selected_items_exist
 from data_manager.models import View
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +117,7 @@ class ProjectListPagination(PageNumberPagination):
     ```
     """.format(settings.HOSTNAME or 'https://localhost:8080')
 ))
+
 class ProjectListAPI(generics.ListCreateAPIView):
     parser_classes = (JSONParser, FormParser, MultiPartParser)
     serializer_class = ProjectSerializer

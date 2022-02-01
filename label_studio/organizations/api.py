@@ -15,6 +15,9 @@ from drf_yasg import openapi
 from django.utils.decorators import method_decorator
 
 from label_studio.core.permissions import all_permissions, ViewClassPermission
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+
+
 from label_studio.core.utils.common import get_object_with_check_and_log, bool_from_request
 
 from organizations.models import Organization
@@ -22,6 +25,7 @@ from organizations.serializers import (
     OrganizationSerializer, OrganizationIdSerializer, OrganizationMemberUserSerializer, OrganizationInviteSerializer
 )
 
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +88,7 @@ class OrganizationMemberPagination(PageNumberPagination):
                 description='A unique integer value identifying this organization.'),
         ],
     ))
+
 class OrganizationMemberListAPI(generics.ListAPIView):
 
     parser_classes = (JSONParser, FormParser, MultiPartParser)
