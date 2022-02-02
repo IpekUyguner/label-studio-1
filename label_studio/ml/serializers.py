@@ -8,7 +8,6 @@ class MLBackendSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         attrs = super(MLBackendSerializer, self).validate(attrs)
         url = attrs['url']
-        """
         if MLBackend.healthcheck_(url).is_error:
             raise serializers.ValidationError(
                 f"Can't connect to ML backend {url}, health check failed. "
@@ -16,11 +15,8 @@ class MLBackendSerializer(serializers.ModelSerializer):
                 f'<a href="https://labelstud.io/guide/ml.html>Learn more</a>'
                 f' about how to set up an ML backend.'
             )
-        """
-
         project = attrs['project']
         setup_response = MLBackend.setup_(url, project)
-        """
         if setup_response.is_error:
             raise serializers.ValidationError(
                 f"Successfully connected to {url} but it doesn't look like a valid ML backend. "
@@ -28,7 +24,6 @@ class MLBackendSerializer(serializers.ModelSerializer):
                 f'Check the ML backend server console logs to check the status. There might be\n'
                 f'something wrong with your model or it might be incompatible with the current labeling configuration.'
             )
-        """
         return attrs
 
     class Meta:

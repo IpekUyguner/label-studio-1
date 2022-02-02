@@ -10,7 +10,6 @@ from django.db.models.signals import post_save, pre_delete
 
 from core.utils.common import safe_float, conditional_atomic
 from data_export.serializers import ExportDataSerializer
-from label_studio.ml import ls
 from ml.api_connector import MLApi
 from projects.models import Project
 from tasks.models import Prediction
@@ -92,10 +91,25 @@ class MLBackend(models.Model):
     def __str__(self):
         return f'{self.title} (id={self.id}, url={self.url})'
 
+    @staticmethod
+    def healthcheck_(url):
+        return MLApi(url=url).health()
 
     def has_permission(self, user):
         return self.project.has_permission(user)
 
+    @staticmethod
+    def setup_(url, project):
+        api = MLApi(url=url)
+        if not isinstance(project, Project):
+            project = Project.objects.get(pk=project)
+        return api.setup(project)
+
+    def healthcheck(self):
+        return self.healthcheck_(self.url)
+
+    def setup(self):
+        return self.setup_(self.url, self.project)
 
     @property
     def api(self):
@@ -103,8 +117,28 @@ class MLBackend(models.Model):
 
     @property
     def not_ready(self):
-        #print('AAAAAAAAAAAAA')
         return self.state in (MLBackendState.DISCONNECTED, MLBackendState.ERROR)
+
+    def update_state(self):
+        if self.healthcheck().is_error:
+            self.state = MLBackendState.DISCONNECTED
+        else:
+            setup_response = self.setup()
+            if setup_response.is_error:
+                logger.warning(f'ML backend responds with error: {setup_response.error_message}')
+                self.state = MLBackendState.ERROR
+                self.error_message = setup_response.error_message
+            else:
+                self.state = MLBackendState.CONNECTED
+                model_version = setup_response.response.get('model_version')
+                logger.info(f'ML backend responds with success: {setup_response.response}')
+                self.model_version = model_version
+                if (model_version != self.project.model_version) and (self.project.model_version == ""):
+                    logger.debug(f'Changing project model version: {self.project.model_version} -> {model_version}')
+                    self.project.model_version = model_version
+                    self.project.save(update_fields=['model_version'])
+                self.error_message = None
+        self.save()
 
     def train(self):
         train_response = self.api.train(self.project)
@@ -119,23 +153,28 @@ class MLBackend(models.Model):
         self.save()
 
     def predict_tasks(self, tasks):
+        self.update_state()
         if self.not_ready:
             logger.debug(f'ML backend {self} is not ready')
-            #return
+            return
 
         if isinstance(tasks, list):
             from tasks.models import Task
+
             tasks = Task.objects.filter(id__in=[task.id for task in tasks])
 
-        print('blablabla')
         tasks_ser = TaskSimpleSerializer(tasks, many=True).data
+        ml_api_result = self.api.make_predictions(tasks_ser, self.project.model_version, self.project)
+        if ml_api_result.is_error:
+            logger.warning(f'Prediction not created for project {self}: {ml_api_result.error_message}')
+            return
 
-        #INSTEAD OF CALLING API FOR PREDICTIONS, DO IT INTERNALLY HERE.
-    #    ml_api_result = self.api.make_predictions(tasks_ser, self.project.model_version, self.project)
-        m = ls.TranscriptionModel()
-        predictions = m.predict(tasks_ser)
+        if not (isinstance(ml_api_result.response, dict) and 'results' in ml_api_result.response):
+            logger.error(f'ML backend returns an incorrect response, it should be a dict: {ml_api_result.response}')
+            return
 
-        responses = predictions
+        responses = ml_api_result.response['results']
+
         if len(responses) == 0:
             logger.warning(f'ML backend returned empty prediction for project {self}')
             return
@@ -156,8 +195,6 @@ class MLBackend(models.Model):
 
         predictions = []
         for task, response in zip(tasks_ser, responses):
-            print('resp:')
-            print(response)
             if 'result' not in response:
                 logger.error(
                     f"ML backend returns an incorrect prediction, it should be a dict with the 'result' field:"
@@ -179,6 +216,7 @@ class MLBackend(models.Model):
             prediction_ser.save()
 
     def __predict_one_task(self, task):
+        self.update_state()
         if self.not_ready:
             logger.debug(f'ML backend {self} is not ready to predict {task}')
             return
