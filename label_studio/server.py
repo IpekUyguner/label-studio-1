@@ -259,8 +259,9 @@ def _project_exists(project_name):
 
 def main():
     input_args = parse_input_args(sys.argv[1:])
-
+    print(input_args)
     # setup logging level
+
     if input_args.log_level:
         os.environ.setdefault("LOG_LEVEL", input_args.log_level)
 
@@ -375,6 +376,7 @@ def main():
 
         # internal port and internal host for server start
         internal_host = input_args.internal_host or config.get('internal_host', '0.0.0.0')
+        print('Bbbbbsssbbbbbbb')
         internal_port = input_args.port or get_env('PORT') or config.get('port', 8080)
         try:
             internal_port = int(internal_port)
@@ -392,7 +394,7 @@ def main():
         url = ('http://localhost:' + str(internal_port)) if not host else host
         start_browser(url, input_args.no_browser)
 
-        _app_run(host=internal_host, port=internal_port)
+        _app_run(host='0.0.0.0', port=internal_port)
 
 
 if __name__ == "__main__":

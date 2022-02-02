@@ -92,25 +92,10 @@ class MLBackend(models.Model):
     def __str__(self):
         return f'{self.title} (id={self.id}, url={self.url})'
 
-    @staticmethod
-    def healthcheck_(url):
-        return MLApi(url=url).health()
 
     def has_permission(self, user):
         return self.project.has_permission(user)
 
-    @staticmethod
-    def setup_(url, project):
-        api = MLApi(url=url)
-        if not isinstance(project, Project):
-            project = Project.objects.get(pk=project)
-        return api.setup(project)
-
-    def healthcheck(self):
-        return self.healthcheck_(self.url)
-
-    def setup(self):
-        return self.setup_(self.url, self.project)
 
     @property
     def api(self):
@@ -118,28 +103,8 @@ class MLBackend(models.Model):
 
     @property
     def not_ready(self):
+        #print('AAAAAAAAAAAAA')
         return self.state in (MLBackendState.DISCONNECTED, MLBackendState.ERROR)
-
-    def update_state(self):
-        if self.healthcheck().is_error:
-            self.state = MLBackendState.DISCONNECTED
-        else:
-            setup_response = self.setup()
-            if setup_response.is_error:
-                logger.warning(f'ML backend responds with error: {setup_response.error_message}')
-                self.state = MLBackendState.ERROR
-                self.error_message = setup_response.error_message
-            else:
-                self.state = MLBackendState.CONNECTED
-                model_version = setup_response.response.get('model_version')
-                logger.info(f'ML backend responds with success: {setup_response.response}')
-                self.model_version = model_version
-                if (model_version != self.project.model_version) and (self.project.model_version == ""):
-                    logger.debug(f'Changing project model version: {self.project.model_version} -> {model_version}')
-                    self.project.model_version = model_version
-                    self.project.save(update_fields=['model_version'])
-                self.error_message = None
-        self.save()
 
     def train(self):
         train_response = self.api.train(self.project)
@@ -154,10 +119,9 @@ class MLBackend(models.Model):
         self.save()
 
     def predict_tasks(self, tasks):
-        self.update_state()
         if self.not_ready:
             logger.debug(f'ML backend {self} is not ready')
-            return
+            #return
 
         if isinstance(tasks, list):
             from tasks.models import Task
@@ -215,7 +179,6 @@ class MLBackend(models.Model):
             prediction_ser.save()
 
     def __predict_one_task(self, task):
-        self.update_state()
         if self.not_ready:
             logger.debug(f'ML backend {self} is not ready to predict {task}')
             return

@@ -88,13 +88,10 @@ class MLBackendListAPI(generics.ListCreateAPIView):
         project = get_object_with_check_and_log(self.request, Project, pk=project_pk)
         self.check_object_permissions(self.request, project)
         ml_backends = MLBackend.objects.filter(project_id=project.id)
-        for mlb in ml_backends:
-            mlb.update_state()
         return ml_backends
 
     def perform_create(self, serializer):
         ml_backend = serializer.save()
-        ml_backend.update_state()
 
 
 @method_decorator(
@@ -151,12 +148,10 @@ class MLBackendDetailAPI(generics.RetrieveUpdateDestroyAPIView):
 
     def get_object(self):
         ml_backend = super(MLBackendDetailAPI, self).get_object()
-        ml_backend.update_state()
         return ml_backend
 
     def perform_update(self, serializer):
         ml_backend = serializer.save()
-        ml_backend.update_state()
 
 
 @method_decorator(

@@ -12,6 +12,7 @@ if __name__ == '__main__':
         from django.core.management.commands.runserver import Command as runserver
         from django.conf import settings
         runserver.default_port = settings.INTERNAL_PORT
+        runserver.default_addr = "0.0.0.0"
 
     except ImportError as exc:
         raise ImportError(
